@@ -4,11 +4,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
-
-
 # federated learning model
 class FedModel(nn.Module):
-    def __init__(self,  dim_in):
+    def __init__(self, dim_in):
         super().__init__()
         self.linear1 = nn.Linear(dim_in, 64)
         self.linear2 = nn.Linear(64, 128)
@@ -17,7 +15,7 @@ class FedModel(nn.Module):
         self.linear5 = nn.Linear(32, 1)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(p=0.25)
-        
+
     def forward(self, x):
         x = self.relu(self.linear1(x))
         x = self.dropout(x)
@@ -27,10 +25,10 @@ class FedModel(nn.Module):
         x = self.dropout(x)
         x = self.relu(self.linear4(x))
         x = self.dropout(x)
-        x = self.linear5(x) 
-        x = self.relu(x) #
+        x = self.linear5(x)
+        x = self.relu(x)  #
         return x
-    
+
 
 class LSTMModel(nn.Module):
     def __init__(self, dim_in, hidden_size, output_size):
@@ -40,9 +38,8 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         lstm_out, _ = self.lstm(x)
-        x = self.fc(lstm_out[:, -1, :]) 
+        x = self.fc(lstm_out[:, -1, :])
         return x
-
 
 
 class CNNModel(nn.Module):
@@ -52,11 +49,11 @@ class CNNModel(nn.Module):
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool1d(kernel_size=2)
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(16 * 9, 64)  
+        self.fc1 = nn.Linear(16 * 9, 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, x):
-        x = x.unsqueeze(1)  
+        x = x.unsqueeze(1)
         x = self.conv1(x)
         x = self.relu(x)
         x = self.pool(x)

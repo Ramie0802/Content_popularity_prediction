@@ -3,3 +3,5 @@ __pycache__
 */data/*
 data/ratings_small.csv
 data/TMDB_movie_dataset_v11.csv
+glove.6B/*
+data/preprocessed.pkl

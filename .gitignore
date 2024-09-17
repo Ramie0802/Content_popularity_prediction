@@ -1,8 +1,5 @@
 .vector_cache/*
 __pycache__
-*/data/*
-data/ratings_small.csv
-data/TMDB_movie_dataset_v11.csv
+data/*
 glove.6B/*
-data/preprocessed.pkl
-data/ml-100k/*
+notebook/old_processing.ipynb

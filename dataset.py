@@ -60,6 +60,10 @@ def load_dataset(path):
             names=["user_id", "item_id", "rating", "timestamp"],
         )
 
+        ratings = ratings.dropna()
+        ratings = ratings.drop_duplicates(subset=["user_id", "item_id"])
+        ratings = ratings.sort_values(by=["timestamp"])
+
         movies = pd.read_csv(
             os.path.join(path, "u.item"),
             sep="|",
@@ -77,7 +81,7 @@ def load_dataset(path):
         users = pd.read_csv(
             os.path.join(path, "u.user"),
             sep="|",
-            names=[" user_id", "age", "gender", "occupation", "zip_code"],
+            names=["user_id", "age", "gender", "occupation", "zip_code"],
         )
 
         movies = movies.drop(
@@ -96,6 +100,11 @@ def load_dataset(path):
 
         # drop duplicates movies
         dataset = dataset.drop_duplicates(subset="item_id")
+        dataset = dataset.dropna()
+
+        # remove ratings with unknown movies
+        ratings = ratings[ratings["item_id"].isin(dataset["item_id"])]
+        ratings = ratings[ratings["user_id"].isin(users["user_id"])]
 
         sparse_vecs = {}
         semantic_vecs = {}

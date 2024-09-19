@@ -1,6 +1,51 @@
 import random
 import numpy as np
 from scipy.stats import truncnorm
+from dataset import load_dataset
+import pandas as pd
+
+
+class ContentLibrary:
+    def __init__(self, path):
+        self.dataset = load_dataset(path)
+        self.ratings = self.dataset["ratings"]
+        self.users = self.dataset["users"]
+        self.semantic_vecs = self.dataset["semantic_vec"]
+        self.sparse_vecs = self.dataset["sparse_vec"]
+        self.semantic_cosine = self.dataset["cosine_semantic"]
+        self.sparse_cosine = self.dataset["cosine_sparse"]
+
+        self.total_items = list(set(self.ratings["item_id"]))
+        self.total_users = list(set(self.ratings["user_id"]))
+
+        self.user_sorted = self.ratings["user_id"].value_counts()
+
+        self.used_user_ids = []
+
+    def load_ratings(self, user_id):
+        ratings = self.ratings[self.ratings["user_id"] == user_id].copy()
+        ratings.loc[:, "semantic_vec"] = ratings["item_id"].apply(
+            lambda x: self.semantic_vecs[int(x)]
+        )
+        ratings.loc[:, "sparse_vec"] = ratings["item_id"].apply(
+            lambda x: self.sparse_vecs[int(x)]
+        )
+
+        ratings = ratings.sort_values(by="timestamp", ascending=False)
+        return ratings
+
+    def load_user_info(self, user_id):
+        return self.ratings[self.ratings["user_id"] == user_id]
+
+    def get_user(self):
+        user_id = random.choice(self.total_users)
+        while user_id in self.used_user_ids:
+            user_id = random.choice(self.total_users)
+        self.used_user_ids.append(user_id)
+        return user_id
+
+    def return_user(self, user_id):
+        self.used_user_ids.remove(user_id)
 
 
 class RSU:
@@ -14,12 +59,15 @@ class RSU:
 
 
 class Vehicle:
-    def __init__(self, position, velocity):
+    def __init__(self, position, velocity, user_id, info, data) -> None:
+        self.user_id = user_id
         self.position = position
         self.velocity = velocity
+        self.data = data
+        self.info = info
 
     def __repr__(self) -> str:
-        return f"Vehicle at {self.position}, velocity: {self.velocity}"
+        return f"Vehicle {self.user_id} at {self.position}, velocity: {self.velocity}"
 
 
 class Environment:
@@ -43,6 +91,7 @@ class Environment:
         self.road_length = road_length
         self.time_step = time_step
         self.current_time = 0
+        self.content_library = ContentLibrary("./data/ml-100k/")
 
         # RSU
         self.rsu_coverage = rsu_coverage
@@ -70,7 +119,12 @@ class Environment:
         self.vehicles = []
 
         for _ in range(int(self.poisson_event())):
-            self.vehicles.append(Vehicle(0, self.truncated_gaussian()))
+            user_id = self.content_library.get_user()
+            user_info = self.content_library.load_user_info(user_id)
+            user_data = self.content_library.load_ratings(user_id)
+            self.vehicles.append(
+                Vehicle(0, self.truncated_gaussian(), user_id, user_info, user_data)
+            )
 
     def truncated_gaussian(self):
         a, b = (self.min_velocity - self.mean_velocity) / self.std_velocity, (
@@ -86,10 +140,11 @@ class Environment:
         for vehicle in self.vehicles:
             vehicle.position += vehicle.velocity * self.time_step
 
-        # remove vehicles that have left the road
-        self.vehicles = [
-            vehicle for vehicle in self.vehicles if vehicle.position <= self.road_length
-        ]
+        # remove vehicles that have left the road and return the user id to the content library
+        for vehicle in self.vehicles.copy():
+            if vehicle.position > self.road_length:
+                self.content_library.return_user(vehicle.user_id)
+                self.vehicles.remove(vehicle)
 
         # update vehicle velocity
         for vehicle in self.vehicles:
@@ -97,7 +152,12 @@ class Environment:
 
         # add new vehicles
         for _ in range(int(self.poisson_event())):
-            self.vehicles.append(Vehicle(0, self.truncated_gaussian()))
+            user_id = self.content_library.get_user()
+            user_info = self.content_library.load_user_info(user_id)
+            user_data = self.content_library.load_ratings(user_id)
+            self.vehicles.append(
+                Vehicle(0, self.truncated_gaussian(), user_id, user_info, user_data)
+            )
 
         # update time
         self.current_time += self.time_step
@@ -113,12 +173,12 @@ if __name__ == "__main__":
         rsu_coverage=400,
         rsu_capacity=20,
         num_rsu=5,
-        time_step=1,
+        time_step=10,
     )
 
     for _ in range(1000):
         print(f"Time: {env.current_time}")
         print(f"Number of vehicles: {len(env.vehicles)}")
         for idx, vehicle in enumerate(env.vehicles):
-            print(f"Vehicle {idx} at {vehicle.position}, velocity: {vehicle.velocity}")
+            print(vehicle, len(env.content_library.used_user_ids))
         env.small_step()

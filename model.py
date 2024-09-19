@@ -4,29 +4,33 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
-# federated learning model
-class FedModel(nn.Module):
-    def __init__(self, dim_in):
-        super().__init__()
-        self.linear1 = nn.Linear(dim_in, 64)
-        self.linear2 = nn.Linear(64, 128)
-        self.linear3 = nn.Linear(128, 96)
-        self.linear4 = nn.Linear(96, 32)
-        self.linear5 = nn.Linear(32, 1)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=0.25)
+class SemanticAggregator(nn.Module):
+    def __init__(self, embedding_dim):
+        super(SemanticAggregator, self).__init__()
+        self.linear = nn.Linear(embedding_dim, 1)
+
+    def forward(self, x):  # x: [batch_size, seq_len, embedding_dim]
+
+        for batch in x:
+            for seq in batch:
+                pass
+
+
+class AutoEncoder(nn.Module):
+    def __init__(self, input_dim, hidden_dim):
+        super(AutoEncoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(True),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_dim, input_dim),
+            nn.ReLU(True),
+        )
 
     def forward(self, x):
-        x = self.relu(self.linear1(x))
-        x = self.dropout(x)
-        x = self.relu(self.linear2(x))
-        x = self.dropout(x)
-        x = self.relu(self.linear3(x))
-        x = self.dropout(x)
-        x = self.relu(self.linear4(x))
-        x = self.dropout(x)
-        x = self.linear5(x)
-        x = self.relu(x)  #
+        x = self.encoder(x)
+        x = self.decoder(x)
         return x
 
 

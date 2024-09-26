@@ -36,7 +36,7 @@ def load_glove(
 
 def load_dataset(path):
 
-    if "dataset.pkl" in os.listdir(path):
+    if "dataset.pkl" in os.listdir("./data/"):
         with open("./data/dataset.pkl", "rb") as f:
             dataset = pickle.load(f)
             f.close()
@@ -84,7 +84,7 @@ def load_dataset(path):
             names=["user_id", "age", "gender", "occupation", "zip_code"],
         )
 
-        movies = movies.drop(
+        dataset = movies.drop(
             ["release_date", "title", "video_release_date", "IMDb_URL"],
             axis=1,
             inplace=False,
@@ -92,20 +92,34 @@ def load_dataset(path):
 
         users = users.drop(["zip_code"], axis=1, inplace=False)
 
-        dataset = movies
-
         # drop row if unknown is 1
         dataset = dataset[dataset["unknown"] != 1]
         dataset = dataset.drop(["unknown"], axis=1, inplace=False)
 
         # drop duplicates movies
         dataset = dataset.drop_duplicates(subset="item_id")
-        dataset = dataset.dropna()
+        # dataset = dataset.dropna()
 
         # remove ratings with unknown movies
         ratings = ratings[ratings["item_id"].isin(dataset["item_id"])]
         ratings = ratings[ratings["user_id"].isin(users["user_id"])]
 
+        # reduce movie id by min to have a content id starting from 0
+        min_id = min(dataset["item_id"])
+        dataset["item_id"] = dataset["item_id"] - min_id
+        ratings["item_id"] = ratings["item_id"] - min_id
+
+        # handling missing item to ensure that the item_id is continuous
+        substraction = 0
+
+        for i in range(max(dataset["item_id"]) + 1):
+            if i not in dataset["item_id"].values:
+                substraction += 1
+
+            dataset.loc[dataset["item_id"] == i, "item_id"] -= substraction
+            ratings.loc[ratings["item_id"] == i, "item_id"] -= substraction
+
+        # create sparse and semantic vectors
         sparse_vecs = {}
         semantic_vecs = {}
 
@@ -132,6 +146,14 @@ def load_dataset(path):
         cosine_semantic = {}
 
         item_ids = dataset["item_id"].to_numpy()
+        item_ids.sort()
+
+        # print(max(item_ids), min(item_ids), len(item_ids))
+
+        # for i in range(max(item_ids) + 1):
+        #     if i not in item_ids:
+        #         print("missing ", i)
+
         sparse_matrix = np.array([sparse_vecs[item_id] for item_id in item_ids])
         semantic_matrix = np.array([semantic_vecs[item_id] for item_id in item_ids])
 
@@ -147,16 +169,11 @@ def load_dataset(path):
             semantic_norms, semantic_norms
         )
 
-        # Fill the dictionaries
-        for idx, item_id in enumerate(item_ids):
-            cosine_sparse[item_id] = cosine_sparse_matrix[idx].tolist()
-            cosine_semantic[item_id] = cosine_semantic_matrix[idx].tolist()
-
         dataset = {
             "sparse_vec": sparse_vecs,
             "semantic_vec": semantic_vecs,
-            "cosine_sparse": cosine_sparse,
-            "cosine_semantic": cosine_semantic,
+            "cosine_sparse": cosine_sparse_matrix,
+            "cosine_semantic": cosine_semantic_matrix,
             "ratings": ratings,
             "users": users,
         }
